@@ -112,7 +112,7 @@ class Checkpointer(object):
 
   def _save_data_to_file(self, data, filename):
     """Saves the given 'data' object to a file."""
-    with tf.gfile.GFile(filename, 'w') as fout:
+    with tf.io.gfile.GFile(filename, 'w') as fout:
       pickle.dump(data, fout)
 
   def save_checkpoint(self, iteration_number, data):
@@ -131,7 +131,7 @@ class Checkpointer(object):
     self._save_data_to_file(data, filename)
     filename = self._generate_filename('sentinel_checkpoint_complete',
                                        iteration_number)
-    with tf.gfile.GFile(filename, 'wb') as fout:
+    with tf.io.gfile.GFile(filename, 'wb') as fout:
       fout.write('done')
 
     self._clean_up_old_checkpoints(iteration_number)
@@ -159,7 +159,7 @@ class Checkpointer(object):
   def _load_data_from_file(self, filename):
     if not tf.gfile.Exists(filename):
       return None
-    with tf.gfile.GFile(filename, 'rb') as fin:
+    with tf.io.gfile.GFile(filename, 'rb') as fin:
       return pickle.load(fin)
 
   def load_checkpoint(self, iteration_number):

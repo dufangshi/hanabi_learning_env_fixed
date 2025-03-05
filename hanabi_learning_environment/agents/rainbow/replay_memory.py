@@ -367,7 +367,7 @@ class OutOfGraphReplayMemory(object):
       if not attr.startswith('_'):
         filename = self._generate_filename(checkpoint_dir, attr,
                                            iteration_number)
-        with tf.gfile.Open(filename, 'wb') as f:
+        with tf.io.gfile.GFile(filename, 'wb') as f:
           with gzip.GzipFile(fileobj=f) as outfile:
             # Checkpoint numpy arrays directly with np.save to avoid excessive
             # memory usage. This is particularly important for the observations
@@ -406,15 +406,17 @@ class OutOfGraphReplayMemory(object):
         continue
       filename = self._generate_filename(checkpoint_dir, attr, suffix)
       if not tf.gfile.Exists(filename):
+        print("file not found!!!:",filename)
         raise tf.errors.NotFoundError(None, None,
                                       'Missing file: {}'.format(filename))
+      
     # If we've reached this point then we have verified that all expected files
     # are available.
     for attr in self.__dict__:
       if attr.startswith('_'):
         continue
       filename = self._generate_filename(checkpoint_dir, attr, suffix)
-      with tf.gfile.Open(filename, 'rb') as f:
+      with tf.io.gfile.GFile(filename, 'rb') as f:
         with gzip.GzipFile(fileobj=f) as infile:
           if isinstance(self.__dict__[attr], np.ndarray):
             self.__dict__[attr] = np.load(infile, allow_pickle=False)

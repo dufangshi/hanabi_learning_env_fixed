@@ -86,7 +86,7 @@ class Logger(object):
       tf.logging.warning('Logging is disabled.')
       return
     log_file = self._generate_filename(filename_prefix, iteration_number)
-    with tf.gfile.GFile(log_file, 'w') as fout:
+    with tf.io.gfile.GFile(log_file, 'w') as fout:
       pickle.dump(self.data, fout, protocol=pickle.HIGHEST_PROTOCOL)
     # After writing a checkpoint file, we garbage collect the log file
     # that is CHECKPOINT_DURATION versions old.

@@ -15,14 +15,37 @@
 
 from __future__ import print_function
 
-import sys
+import sys, os
+parent_dir = os.path.abspath(os.path.dirname(__file__))
+idx = parent_dir.rfind("/")
+parent_dir = parent_dir[:idx]
+
+sys.path.append(parent_dir+"/hanabi_learning_environment")
+
+parent_dir+="/hanabi_learning_environment/agents/rainbow"
+# idx = parent_dir.rfind("/")
+# parent_dir = parent_dir[:idx]
+print("import dir:", parent_dir)
+sys.path.append(parent_dir)
+
 import getopt
 from hanabi_learning_environment import rl_env
 from hanabi_learning_environment.agents.random_agent import RandomAgent
 from hanabi_learning_environment.agents.simple_agent import SimpleAgent
+from rainbow_agent_wrapper import Agent
 
 AGENT_CLASSES = {'SimpleAgent': SimpleAgent, 'RandomAgent': RandomAgent}
 
+
+        # self.num_players = args.num_players
+        # self.num_games = args.num_games
+        # self.environment = rl_env.make('Hanabi-Full', num_players=self.num_players)
+        # self.agent_config = {
+        #         'players': self.num_players,
+        #         'num_moves': self.environment.num_moves(),
+        #         'observation_size': self.environment.vectorized_observation_shape()[0]}
+        # print(self.agent_config)
+        # self.agent_object = rainbow.Agent(self.agent_config)
 
 class Runner(object):
   """Runner class."""
@@ -34,13 +57,24 @@ class Runner(object):
     self.environment = rl_env.make('Hanabi-Full', num_players=flags['players'])
     self.agent_class = AGENT_CLASSES[flags['agent_class']]
 
+    self.num_players = flags['players']
+    self.agent_config = {
+            'players': self.num_players,
+            'num_moves': self.environment.num_moves(),
+            'observation_size': self.environment.vectorized_observation_shape()[0]}
+    print(self.agent_config)
+    self.agent_object = Agent(self.agent_config)
+
   def run(self):
     """Run episodes."""
     rewards = []
     for episode in range(flags['num_episodes']):
       observations = self.environment.reset()
-      agents = [self.agent_class(self.agent_config)
-                for _ in range(self.flags['players'])]
+      # agents = [self.agent_class(self.agent_config)
+      #           for _ in range(self.flags['players'])]
+      agents = []
+      agents.append(self.agent_object)
+      agents.append(self.agent_object)
       done = False
       episode_reward = 0
       while not done:
