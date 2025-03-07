@@ -37,7 +37,7 @@ from hanabi_learning_environment.agents.random_agent import RandomAgent
 from hanabi_learning_environment.agents.simple_agent import SimpleAgent
 from rainbow_agent_wrapper import Agent as RainbowAgent
 from hanabi_learning_environment import rl_env
-from human_agent import HumanAgent
+from human_agent import HumanAgent, HumanWebAgent
 
 AGENT_CLASSES = {'SimpleAgent': SimpleAgent, 'RandomAgent': RandomAgent, 'RainbowAgent': RainbowAgent, 'HumanAgent': HumanAgent}
 
@@ -60,7 +60,7 @@ class Runner(object):
     print(self.agent_config)
     self.agent_object = self.agent_class(self.agent_config)
 
-  def run(self, interactive=False):
+  def run(self, interactive=False, webAgent=None):
     """Run episodes."""
     if interactive: # Play with human
       observations = self.environment.reset()
@@ -68,8 +68,11 @@ class Runner(object):
       #           for _ in range(self.flags['players'])]
       agents = []
       agents.append(self.agent_object)
-      human_agent = HumanAgent()
-      agents.append(human_agent)
+      if not webAgent:
+        human_agent = HumanAgent()
+        agents.append(human_agent)
+      else:
+        agents.append(webAgent)
       done = False
       episode_reward = 0
       
@@ -90,12 +93,13 @@ class Runner(object):
         print('get reward:' , reward)
         episode_reward += (reward if reward > 0 else 0)
       print('Curr Reward: %.3f' % episode_reward)
+      agents[1].act(episode_reward) #close connection
       return episode_reward
 
 
 
     rewards = []
-    for episode in range(flags['num_episodes']):
+    for episode in range(self.flags['num_episodes']):
       observations = self.environment.reset()
       # agents = [self.agent_class(self.agent_config)
       #           for _ in range(self.flags['players'])]
@@ -123,22 +127,29 @@ class Runner(object):
       print('Running episode: %d' % episode)
       print('Curr Reward: %.3f' % episode_reward)
     return rewards
+  
+humanWebPlayer = HumanWebAgent()
+def webPlay():
+  runner = Runner({'players': 2, 'num_episodes': 1, 'agent_class': 'RainbowAgent'})
+  runner.run(True, humanWebPlayer)
+
 
 if __name__ == "__main__":
-  flags = {'players': 2, 'num_episodes': 200, 'agent_class': 'RainbowAgent'}
-  options, arguments = getopt.getopt(sys.argv[1:], '',
-                                     ['players=',
-                                      'num_episodes=',
-                                      'agent_class='])
-  if arguments:
-    sys.exit('usage: rl_env_example.py [options]\n'
-             '--players       number of players in the game.\n'
-             '--num_episodes  number of game episodes to run.\n'
-             '--agent_class   {}'.format(' or '.join(AGENT_CLASSES.keys())))
-  for flag, value in options:
-    flag = flag[2:]  # Strip leading --.
-    flags[flag] = type(flags[flag])(value)
-  runner = Runner(flags)
-  rewards = runner.run(True)
-  print("score list:", rewards)
+  webPlay()
+  # flags = {'players': 2, 'num_episodes': 200, 'agent_class': 'RainbowAgent'}
+  # options, arguments = getopt.getopt(sys.argv[1:], '',
+  #                                    ['players=',
+  #                                     'num_episodes=',
+  #                                     'agent_class='])
+  # if arguments:
+  #   sys.exit('usage: rl_env_example.py [options]\n'
+  #            '--players       number of players in the game.\n'
+  #            '--num_episodes  number of game episodes to run.\n'
+  #            '--agent_class   {}'.format(' or '.join(AGENT_CLASSES.keys())))
+  # for flag, value in options:
+  #   flag = flag[2:]  # Strip leading --.
+  #   flags[flag] = type(flags[flag])(value)
+  # runner = Runner(flags)
+  # rewards = runner.run(True)
+  # print("score list:", rewards)
   # print("average score:", sum(rewards)/len(rewards))
