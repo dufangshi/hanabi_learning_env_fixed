@@ -1,4 +1,4 @@
-model_checkpoint_path: "tf_ckpt-300"
-all_model_checkpoint_paths: "tf_ckpt-200"
-all_model_checkpoint_paths: "tf_ckpt-250"
-all_model_checkpoint_paths: "tf_ckpt-300"
+model_checkpoint_path: "tf_ckpt-2250"
+all_model_checkpoint_paths: "tf_ckpt-2150"
+all_model_checkpoint_paths: "tf_ckpt-2200"
+all_model_checkpoint_paths: "tf_ckpt-2250"

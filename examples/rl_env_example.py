@@ -22,30 +22,25 @@ parent_dir = parent_dir[:idx]
 
 sys.path.append(parent_dir+"/hanabi_learning_environment")
 
-parent_dir+="/hanabi_learning_environment/agents/rainbow"
+
 # idx = parent_dir.rfind("/")
 # parent_dir = parent_dir[:idx]
-print("import dir:", parent_dir)
-sys.path.append(parent_dir)
+sys.path.append(parent_dir+"/hanabi_learning_environment/agents/rainbow")
+
+
+sys.path.append(parent_dir+"/hanabi_learning_environment/agents")
 
 import getopt
-from hanabi_learning_environment import rl_env
+import random
+# from hanabi_learning_environment import rl_env
 from hanabi_learning_environment.agents.random_agent import RandomAgent
 from hanabi_learning_environment.agents.simple_agent import SimpleAgent
-from rainbow_agent_wrapper import Agent
+from rainbow_agent_wrapper import Agent as RainbowAgent
+from hanabi_learning_environment import rl_env
+from human_agent import HumanAgent
 
-AGENT_CLASSES = {'SimpleAgent': SimpleAgent, 'RandomAgent': RandomAgent}
+AGENT_CLASSES = {'SimpleAgent': SimpleAgent, 'RandomAgent': RandomAgent, 'RainbowAgent': RainbowAgent, 'HumanAgent': HumanAgent}
 
-
-        # self.num_players = args.num_players
-        # self.num_games = args.num_games
-        # self.environment = rl_env.make('Hanabi-Full', num_players=self.num_players)
-        # self.agent_config = {
-        #         'players': self.num_players,
-        #         'num_moves': self.environment.num_moves(),
-        #         'observation_size': self.environment.vectorized_observation_shape()[0]}
-        # print(self.agent_config)
-        # self.agent_object = rainbow.Agent(self.agent_config)
 
 class Runner(object):
   """Runner class."""
@@ -63,10 +58,42 @@ class Runner(object):
             'num_moves': self.environment.num_moves(),
             'observation_size': self.environment.vectorized_observation_shape()[0]}
     print(self.agent_config)
-    self.agent_object = Agent(self.agent_config)
+    self.agent_object = self.agent_class(self.agent_config)
 
-  def run(self):
+  def run(self, interactive=False):
     """Run episodes."""
+    if interactive: # Play with human
+      observations = self.environment.reset()
+      # agents = [self.agent_class(self.agent_config)
+      #           for _ in range(self.flags['players'])]
+      agents = []
+      agents.append(self.agent_object)
+      human_agent = HumanAgent()
+      agents.append(human_agent)
+      done = False
+      episode_reward = 0
+      
+      while not done:
+        curr_player_id=observations['player_observations'][0]['current_player']
+        for agent_id, agent in enumerate(agents):
+          if agent_id != curr_player_id:
+            continue
+          player_obs = observations['player_observations'][curr_player_id]
+          action = agent.act(player_obs)
+          assert action is not None
+          current_player_action = action
+        # Make an environment step.
+        print('Agent: {} action: {}'.format(player_obs['current_player'],
+                                            current_player_action))
+        observations, reward, done, unused_info = self.environment.step(
+            current_player_action)
+        print('get reward:' , reward)
+        episode_reward += (reward if reward > 0 else 0)
+      print('Curr Reward: %.3f' % episode_reward)
+      return episode_reward
+
+
+
     rewards = []
     for episode in range(flags['num_episodes']):
       observations = self.environment.reset()
@@ -94,11 +121,11 @@ class Runner(object):
         episode_reward += reward
       rewards.append(episode_reward)
       print('Running episode: %d' % episode)
-      print('Max Reward: %.3f' % max(rewards))
+      print('Curr Reward: %.3f' % episode_reward)
     return rewards
 
 if __name__ == "__main__":
-  flags = {'players': 2, 'num_episodes': 1, 'agent_class': 'SimpleAgent'}
+  flags = {'players': 2, 'num_episodes': 200, 'agent_class': 'RainbowAgent'}
   options, arguments = getopt.getopt(sys.argv[1:], '',
                                      ['players=',
                                       'num_episodes=',
@@ -112,4 +139,6 @@ if __name__ == "__main__":
     flag = flag[2:]  # Strip leading --.
     flags[flag] = type(flags[flag])(value)
   runner = Runner(flags)
-  runner.run()
+  rewards = runner.run(True)
+  print("score list:", rewards)
+  # print("average score:", sum(rewards)/len(rewards))

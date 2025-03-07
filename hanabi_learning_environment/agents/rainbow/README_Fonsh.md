@@ -6,7 +6,7 @@ python -um train --base_dir=./tmp/hanabi_rainbow                  --checkpoint_d
 make sure to create tmp/checkpoints, and tmp/logs 
 
 
-## to run the model. create pretrained_model under rainbow, and then use
+## to run the model. create pretrained_model under rainbow, and then put checkpoints inside, then
 ```
 hanabi-learning-environment/hanabi_learning_environment/agents/rainbow$ python create_rainbow_data.py --num_games 10 --savedir ../replay_data/
 
