@@ -41,110 +41,49 @@ class HumanAgent(Agent):
     
     return action
   
-
-  
+import queue
 class HumanWebAgent(Agent):
-    """Human Agent that communicates with a web frontend via WebSocket."""
-    
-    def __init__(self, host="localhost", port=8000):
-        self.host = host
-        self.port = port
-        self.action_idx = -1
-        self.websocket_connected = False
-        self.action_received = False
-        self.websocket = None  # Record WebSocket connection
+    def __init__(self):
+        self.action_queue = queue.Queue()
+        self.websocket = None
 
-
-
-        # Create FastAPI server instance
-        self.app = FastAPI()
-        
-        # Bind WebSocket endpoint
-        self.app.add_api_websocket_route("/ws", self.websocket_endpoint)
-
-        # Start WebSocket server in the background
-        threading.Thread(target=self.run_server, daemon=True).start()
-
-    def run_server(self):
-            """Run FastAPI WebSocket server in the background"""
-            uvicorn.run(self.app, host=self.host, port=self.port)
-
-    async def websocket_endpoint(self, websocket: WebSocket):
-        """WebSocket server endpoint, waits for frontend connection and processes data"""
-        await websocket.accept()
-        print("✅ WebSocket client connected")
-        
-        # Record WebSocket connection
+    def set_websocket(self, websocket: WebSocket):
         self.websocket = websocket
-        self.websocket_connected = True  # Notify waiting tasks that WebSocket is connected
 
-        while True:
-            data = await websocket.receive_text()
-            try:
-                print(data)
-                message = json.loads(data)
-
-                if message.get("status") == "connected":
-                    print("✅ Client confirmed connection, waiting for act() to trigger sending observation")
-
-                elif "action" in message:
-                    print("📩 Received action from frontend:", message["action"])
-                    self.action_idx = int(message["action"])
-                    self.action_received = True  # Notify act() to continue execution
-
-            except json.JSONDecodeError:
-                print("❌ Received invalid JSON data")
-
-    async def wait_for_action(self):
-        """Wait for WebSocket client to return action"""
-        
-        while not self.action_received:
-            import time
-            time.sleep(0.1)
-        self.action_received = False
-        print("Action returned")
-
-    def act(self, observation):
-        """When act() is called, actively send observation to client and wait for action"""
-        loop = asyncio.get_event_loop()
-        if not isinstance(observation, dict):
-            loop.run_until_complete(self.send_observation({'event': f'game end with score {observation}'}))
-            # Close the WebSocket connection if it exists
-  
-            if self.websocket is not None:
-                self.websocket.close()
-                print("WebSocket connection closed")
-
-            # Stop the FastAPI server
-            loop = asyncio.get_event_loop()
-            loop.stop()
-            print("FastAPI server stopped")
-            return None
-        print("Waiting for action from frontend...")
-
-        # ✅ Use `asyncio.create_task()` to start async task instead of `asyncio.run()`
-        
-        loop.run_until_complete(self.send_observation({'info': parse_hanabi_state(str(observation["pyhanabi"])), 
-                                                       'actions': {i: item for i, item in enumerate(observation['legal_moves'])}}))
-
-        # ✅ `await` directly waits for action, avoiding `asyncio.run()`
-        loop.run_until_complete(self.wait_for_action())
-        print("act return")
-        return observation['legal_moves'][self.action_idx]
+    def receive_action(self, action_idx):
+        self.action_queue.put(action_idx)
 
     async def send_observation(self, observation_data):
-        """Actively send observation to client, block and wait if no WebSocket connection"""
-        print("send ovs called")
-        if self.websocket is None:
-            print("⏳ Waiting for WebSocket client connection...")
-            while not self.websocket_connected:
-               import time
-               time.sleep(0.1)
-            print("Connection detected, continue sending")
-        # Connection established, send data
-        print(observation_data)
+        while self.websocket is None:
+            await asyncio.sleep(0.1)
         await self.websocket.send_json(observation_data)
-        print("✅ Observation data sent")
+
+    async def wait_for_action(self):
+        while self.action_queue.empty():
+            await asyncio.sleep(0.1)
+        return self.action_queue.get()
+
+    def act(self, observation):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        action = loop.run_until_complete(self._act(observation))
+        loop.close()
+        return action
+
+    async def _act(self, observation):
+        if not isinstance(observation, dict):
+            await self.send_observation({'event': f'game end with score {observation}'})
+            if self.websocket is not None:
+                await self.websocket.close()
+            return None
+        data = {
+            'info': parse_hanabi_state(str(observation["pyhanabi"])),
+            'actions': {i: move for i, move in enumerate(observation['legal_moves'])},
+            'last_action': observation['last_action']
+        }
+        await self.send_observation(data)
+        action_idx = await self.wait_for_action()
+        return observation['legal_moves'][action_idx]
 
 
 

@@ -1,0 +1,30 @@
+/* src/styles/HandComponent.css */
+.hand-action-button {
+    background-color: rgba(255, 255, 255, 0.8); /* Light background */
+    border: 2px solid black;
+    border-radius: 5px;
+    padding: 5px 10px;
+    width: 80px;
+    height: 40px;
+    margin: 15px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: opacity 0.3s ease, transform 0.2s ease;
+    opacity: 0.9;
+  }
+  
+  .hand-action-button:hover {
+    opacity: 1;
+    transform: scale(1.05); /* Slight zoom effect on hover */
+  }
+  
+  .hand-action-button:active {
+    opacity: 0.7;
+    transform: scale(0.95); /* Shrink effect when clicked */
+  }
+  
+  @keyframes blinker {
+    50% { opacity: 0.4; }
+  }
+  

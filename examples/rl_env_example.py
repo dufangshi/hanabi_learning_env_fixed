@@ -19,6 +19,7 @@ import sys, os
 parent_dir = os.path.abspath(os.path.dirname(__file__))
 idx = parent_dir.rfind("/")
 parent_dir = parent_dir[:idx]
+sys.path.append(parent_dir)
 
 sys.path.append(parent_dir+"/hanabi_learning_environment")
 
@@ -37,7 +38,8 @@ from hanabi_learning_environment.agents.random_agent import RandomAgent
 from hanabi_learning_environment.agents.simple_agent import SimpleAgent
 from rainbow_agent_wrapper import Agent as RainbowAgent
 from hanabi_learning_environment import rl_env
-from human_agent import HumanAgent, HumanWebAgent
+print(sys.path)
+from agents.human import HumanAgent, HumanWebAgent
 
 AGENT_CLASSES = {'SimpleAgent': SimpleAgent, 'RandomAgent': RandomAgent, 'RainbowAgent': RainbowAgent, 'HumanAgent': HumanAgent}
 
