@@ -50,7 +50,7 @@ const DiscardsComponent: React.FC<DiscardsComponentProps> = ({ discards }) => {
   const containerStyle: React.CSSProperties = {
     position: 'fixed',
     right: '20px',
-    bottom: '150px', // adjust so it sits above FireWorksComponent
+    bottom: '250px', // adjust so it sits above FireWorksComponent
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     padding: '10px',
     borderRadius: '5px'

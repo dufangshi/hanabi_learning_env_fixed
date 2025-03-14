@@ -46,6 +46,11 @@ class HumanWebAgent(Agent):
     def __init__(self):
         self.action_queue = queue.Queue()
         self.websocket = None
+        self.player_id = -1
+        self.last_action = None
+    
+    def set_player_id(self, id):
+        self.player_id = id
 
     def set_websocket(self, websocket: WebSocket):
         self.websocket = websocket
@@ -68,6 +73,7 @@ class HumanWebAgent(Agent):
         asyncio.set_event_loop(loop)
         action = loop.run_until_complete(self._act(observation))
         loop.close()
+        self.last_action = action
         return action
 
     async def _act(self, observation):
@@ -79,11 +85,143 @@ class HumanWebAgent(Agent):
         data = {
             'info': parse_hanabi_state(str(observation["pyhanabi"])),
             'actions': {i: move for i, move in enumerate(observation['legal_moves'])},
-            'last_action': observation['last_action']
+            'last_action': observation['last_action'],
+            'player_id': self.player_id, 
+            'waiting': 'Your turn to play'
         }
+        print(translate_observation_to_natural_language(data))
         await self.send_observation(data)
         action_idx = await self.wait_for_action()
         return observation['legal_moves'][action_idx]
+    
+    def act_end(self, episode_reward):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self._act_end(episode_reward))
+        loop.close()
+
+    async def _act_end(self, episode_reward):
+        # Send a game-end notification to the client with the final score.
+        await self.send_observation({'event': f'game end with score {episode_reward}'})
+    
+    def update_observation(self, observation, waiting_message):
+        """
+        Update the client with the latest observation and a waiting status.
+        waiting_message: a string such as "Waiting for opponent to play" or "Your turn to play"
+        """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self._update_observation(observation, waiting_message))
+        loop.close()
+    
+    async def _update_observation(self, observation, waiting_message):
+        print("observation try to send", observation)
+        observation = observation['player_observations'][self.player_id]
+        data = {
+            'info': parse_hanabi_state(str(observation["pyhanabi"])),
+            'actions': {i: move for i, move in enumerate(observation['legal_moves'])},
+            'last_action': self.last_action,
+            'player_id': self.player_id, 
+            'waiting': waiting_message
+        }
+        await self.send_observation(data)
+        print("obs sent")
+
+
+
+def translate_observation_to_natural_language(obs: dict) -> str:
+    """Translate a Hanabi game observation into a natural language summary."""
+    lines = []
+    
+    # Extract game tokens and basic info
+    info = obs.get("info", {})
+    life_tokens = info.get("life_tokens", 0)
+    info_tokens = info.get("info_tokens", 0)
+    lines.append(f"Game Tokens: There are {life_tokens} life token(s) and {info_tokens} information token(s) available.")
+    
+    # Fireworks status
+    fireworks = info.get("fireworks", {})
+    if fireworks:
+        fireworks_status = ", ".join(f"{color}: {count}" for color, count in fireworks.items())
+        lines.append(f"Fireworks Status: {fireworks_status}.")
+    
+    # Hands
+    hands = info.get("hands", {})
+    
+    # Current player's hand
+    cur_player_hand = hands.get("cur_player", [])
+    lines.append(f"Current Player's Hand ({len(cur_player_hand)} card(s)):")
+    for card in cur_player_hand:
+        idx = card.get("index", "?")
+        card_val = card.get("card", "Unknown")
+        card_info = card.get("info", "Unknown")
+        possible_colors = ", ".join(card.get("col", []))
+        possible_ranks = ", ".join(card.get("rank", []))
+        lines.append(f"  - Card {idx}: Value = {card_val}, Info = {card_info}; possible colors: [{possible_colors}]; possible ranks: [{possible_ranks}].")
+    
+    # Other players' hands
+    others_hand = hands.get("others", [])
+    lines.append(f"Other Players' Hands ({len(others_hand)} card(s)):")
+    for card in others_hand:
+        idx = card.get("index", "?")
+        card_val = card.get("card", "Unknown")
+        card_info = card.get("info", "Unknown")
+        colors = ", ".join(card.get("col", []))
+        ranks = ", ".join(card.get("rank", []))
+        lines.append(f"  - Card {idx}: Value = {card_val}, Info = {card_info}; colors: [{colors}]; ranks: [{ranks}].")
+    
+    # Deck size and discards
+    deck_size = info.get("deck_size", 0)
+    lines.append(f"Deck: There are {deck_size} cards remaining in the deck.")
+    discards = info.get("discards", [])
+    if discards:
+        discards_str = ", ".join(discards)
+        lines.append(f"Discards: The discard pile contains: {discards_str}.")
+    
+    # Actions history
+    actions = obs.get("actions", {})
+    if actions:
+        lines.append("Actions Performed So Far:")
+        for key in sorted(actions, key=lambda x: int(x)):
+            action = actions[key]
+            action_type = action.get("action_type", "UNKNOWN")
+            if action_type in ["DISCARD", "PLAY"]:
+                card_index = action.get("card_index", "?")
+                lines.append(f"  - Action {key}: {action_type} card at index {card_index}.")
+            elif action_type == "REVEAL_COLOR":
+                target_offset = action.get("target_offset", "?")
+                color = action.get("color", "?")
+                lines.append(f"  - Action {key}: Reveal color '{color}' to player at offset {target_offset}.")
+            elif action_type == "REVEAL_RANK":
+                target_offset = action.get("target_offset", "?")
+                rank = action.get("rank", "?")
+                lines.append(f"  - Action {key}: Reveal rank '{rank+1}' to player at offset {target_offset}.")
+            else:
+                lines.append(f"  - Action {key}: {action}.")
+    
+    # Last action details
+    last_action = obs.get("last_action", {})
+    if last_action:
+        player_id = last_action.get("player_id", "?")
+        action = last_action.get("action", {})
+        action_type = action.get("action_type", "UNKNOWN")
+        if action_type in ["DISCARD", "PLAY"]:
+            card_index = action.get("card_index", "?")
+            last_action_desc = f"{action_type} card at index {card_index}"
+        elif action_type == "REVEAL_COLOR":
+            target_offset = action.get("target_offset", "?")
+            color = action.get("color", "?")
+            last_action_desc = f"Reveal color '{color}' to player at offset {target_offset}"
+        elif action_type == "REVEAL_RANK":
+            target_offset = action.get("target_offset", "?")
+            rank = action.get("rank", "?")
+            last_action_desc = f"Reveal rank '{rank+1}' to player at offset {target_offset}"
+        else:
+            last_action_desc = str(action)
+        lines.append(f"Last Action: Player {player_id} performed action: {last_action_desc}.")
+    
+    return "\n".join(lines)
+
 
 
 
@@ -198,6 +336,9 @@ def parse_hanabi_state(state_str: str) -> dict:
         if line == "-----":
             i += 1  # Skip separator line
             break
+        if line.startswith("Cur player"):
+            i += 1  # Skip "Hands:" line
+            continue
         if line:
             card = parse_card(line, card_idx)
             hands["cur_player"].append(card)
@@ -210,6 +351,9 @@ def parse_hanabi_state(state_str: str) -> dict:
         line = lines[i].strip()
         if line.startswith("Deck size:"):
             break
+        if line.startswith("Cur player"):
+            i += 1  # Skip "Hands:" line
+            continue
         if line:
             card = parse_card(line, card_idx)
             hands["others"].append(card)

@@ -60,10 +60,6 @@ class Agent(_Agent):
     """Act based on the observation of the current player."""
     #import pdb; pdb.set_trace()
     
-    # Make sure that this player is the current player
-    if observation['current_player_offset'] != 0:
-      return None
-    
     legal_moves, observation_vector = self._parse_observation(observation)
     action = self.agent._select_action(observation_vector, legal_moves)
     action = observation['legal_moves'][observation['legal_moves_as_int'].index(action)]

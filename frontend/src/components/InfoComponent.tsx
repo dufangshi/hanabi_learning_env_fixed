@@ -6,7 +6,7 @@ interface InfoComponentProps {
   infoTokens: number; // Maximum 8.
 }
 
-const InfoComponent: React.FC<InfoComponentProps> = ({ lifeTokens, infoTokens }) => {
+const InfoComponent: React.FC<InfoComponentProps> = ({ lifeTokens, infoTokens, deckSize }) => {
   const maxLife = 3;
   const maxInfo = 8;
 
@@ -57,6 +57,9 @@ const InfoComponent: React.FC<InfoComponentProps> = ({ lifeTokens, infoTokens })
         {Array.from({ length: maxInfo }, (_, i) => (
           <span key={i} style={coinStyle(i < infoTokens)}></span>
         ))}
+      </div>
+      <div style={{ marginTop: '10px' }}>
+        {"remaining cards:"+ deckSize}
       </div>
     </div>
   );

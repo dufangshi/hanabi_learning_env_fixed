@@ -147,8 +147,9 @@ const HandComponent: React.FC<HandComponentProps> = ({
   const handleCardClick = (cardIndex: number) => {
     setSelectedCardIndex(prev => (prev === cardIndex ? null : cardIndex));
   };
+
   if(animation){
-    console.log(animation)
+    console.log("hand animation", animation)
   }
 
   return (
